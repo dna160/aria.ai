@@ -1253,7 +1253,18 @@ export function FlowEditorPage() {
     try {
       const res = await aiApi.generateFlow({ prompt: aiPrompt });
       const data = res.data as any;
-      loadFlowIntoCanvas(data.flowDefinition ?? { nodes: [], edges: [] });
+      const def = data.flowDefinition ?? { nodes: [], edges: [] };
+
+      // Guard: don't silently load an empty canvas — show a clear error instead
+      if (!def.nodes || def.nodes.length === 0) {
+        const reason = data.parseError
+          ? `AI returned an unparseable response: ${data.parseError}. Try rephrasing your prompt.`
+          : 'AI returned an empty flow. Try rephrasing your prompt with more detail.';
+        addToast(reason, 'error');
+        return;
+      }
+
+      loadFlowIntoCanvas(def);
       setAiWarnings(data.warnings ?? []);
       setMissingTemplates(data.missingTemplates ?? []);
       if (data.parseError) addToast(`Parse warning: ${data.parseError}`, 'error');

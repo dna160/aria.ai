@@ -212,6 +212,13 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
             responseFormat: 'json_object',
           },
         );
+        // GrokClient returns modelId='error' when both primary and fallback fail
+        // (e.g. 429 credits exhausted, network error). Treat as service unavailable.
+        if ((response as any).modelId === 'error') {
+          return reply.status(502).send({
+            error: 'AI service temporarily unavailable. Check xAI credits at console.x.ai or try again in a few minutes.',
+          });
+        }
         rawContent = response.content;
       } catch (err: any) {
         return reply.status(502).send({ error: `AI generation failed: ${err?.message ?? 'unknown'}` });
@@ -219,7 +226,19 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
       // 3. Lenient parse — return best-effort even if malformed
       try {
-        flowDefinition = JSON.parse(rawContent) as FlowDefinition;
+        const parsed = JSON.parse(rawContent) as any;
+        // Normalise: some models wrap the result — { flowDefinition: { nodes, edges } }
+        // or { flow: { nodes, edges } }. Unwrap if top-level has no 'nodes' array.
+        if (Array.isArray(parsed?.nodes)) {
+          flowDefinition = parsed as FlowDefinition;
+        } else if (Array.isArray(parsed?.flowDefinition?.nodes)) {
+          flowDefinition = parsed.flowDefinition as FlowDefinition;
+        } else if (Array.isArray(parsed?.flow?.nodes)) {
+          flowDefinition = parsed.flow as FlowDefinition;
+        } else {
+          // Unexpected shape — record as parse error but continue (best-effort)
+          parseError = `Unexpected response shape from AI — no nodes array found`;
+        }
       } catch (e: any) {
         parseError = `JSON parse failed: ${e.message}`;
         // Attempt to extract JSON from markdown fences
@@ -232,6 +251,13 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
             // Keep parseError
           }
         }
+      }
+
+      // If we still have no nodes and there's a parse error, fail hard
+      if (parseError && (!flowDefinition.nodes || flowDefinition.nodes.length === 0)) {
+        return reply.status(502).send({
+          error: `AI returned an unparseable response. ${parseError}. Try rephrasing your prompt.`,
+        });
       }
 
       // 4. Extract placeholder templates
