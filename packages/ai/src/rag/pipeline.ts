@@ -111,7 +111,10 @@ export async function query(productId: string, tenantId: string, question: strin
       `;
       if (chunks.length > 0) return chunks.map((r) => r.content_text).join('\n\n---\n\n');
     } catch (err) {
-      console.warn('[query] Vector search failed, falling back to FTS:', (err as Error).message);
+      // Downgraded to log (not warn/error) — FTS fallback is the expected path when
+      // XAI_EMBEDDING_MODEL is set to a model the xAI account doesn't support,
+      // or when no embeddings have been stored yet. Not an actionable error.
+      console.log('[query] Vector search unavailable, using FTS:', (err as Error).message);
     }
   }
 

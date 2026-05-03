@@ -27,13 +27,15 @@ function getClient(): OpenAI {
 const BATCH_SIZE = 100;
 
 export async function embed(text: string): Promise<number[]> {
-  const model = process.env.XAI_EMBEDDING_MODEL ?? 'text-embedding-3-small';
+  const model = process.env.XAI_EMBEDDING_MODEL;
+  if (!model) throw new Error('XAI_EMBEDDING_MODEL is not set — vector embeddings unavailable');
   const res = await getClient().embeddings.create({ model, input: text });
   return res.data[0].embedding;
 }
 
 export async function batchEmbed(texts: string[]): Promise<number[][]> {
-  const model = process.env.XAI_EMBEDDING_MODEL ?? 'text-embedding-3-small';
+  const model = process.env.XAI_EMBEDDING_MODEL;
+  if (!model) throw new Error('XAI_EMBEDDING_MODEL is not set — vector embeddings unavailable');
   const results: number[][] = [];
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE);
