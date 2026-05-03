@@ -348,9 +348,15 @@ export class FlowEngine {
 
     const definition = matched.definition as unknown as FlowDefinition;
     const triggerNode = definition.nodes.find(n => n.type === 'TRIGGER');
-    if (!triggerNode) throw new Error(`Flow ${matched.id} has no TRIGGER node`);
+    if (!triggerNode) {
+      // Flow is misconfigured — mark completed so it doesn't stay stuck, but still
+      // return true so the LLM does NOT fire (the flow was matched — it just can't run).
+      console.error(`[FlowEngine] handleKeywordTrigger: flow ${matched.id} has no TRIGGER node`);
+      await this._markCompleted(ctx);
+      return true;
+    }
 
-    const firstEdge = definition.edges.find(
+    const firstEdge = (definition.edges ?? []).find(
       e => e.source === triggerNode.id && (!e.sourcePort || e.sourcePort === 'default' || e.sourcePort === 'output_1'),
     );
 
@@ -359,7 +365,15 @@ export class FlowEngine {
       return true;
     }
 
-    await this.executeNode(execution.id, firstEdge.target, ctx);
+    // Fire execution without awaiting — once the execution record is created the decision
+    // to suppress the LLM is final.  Any node-level failure (Meta API error, bad config)
+    // is logged inside executeNode and must NOT revert that decision.
+    this.executeNode(execution.id, firstEdge.target, ctx).catch(err => {
+      console.error(
+        `[FlowEngine] handleKeywordTrigger: executeNode failed for execution=${execution.id} flow=${matched.id}:`,
+        err,
+      );
+    });
     return true;
   }
 
@@ -724,7 +738,7 @@ export class FlowEngine {
     // Drawflow-style key equivalent for this semantic port (may be undefined if no mapping)
     const drawflowKey = semanticPortToDrawflow(nodeType, port);
 
-    const edge = definition.edges.find(e => {
+    const edge = (definition.edges ?? []).find(e => {
       if (e.source !== fromNodeId) return false;
       // Exact semantic match (new saves after fix)
       if (e.sourcePort === port) return true;
