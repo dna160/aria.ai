@@ -215,12 +215,34 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         // GrokClient returns modelId='error' when both primary and fallback fail
         // (e.g. 429 credits exhausted, network error). Treat as service unavailable.
         if ((response as any).modelId === 'error') {
+          request.log.error({
+            event: 'ai_flow_generate_dual_failure',
+            tenantId,
+            prompt: prompt.slice(0, 200),
+            rawContent: response.content,
+            latencyMs: response.latencyMs,
+          }, 'AI generate-flow: both primary and fallback models failed');
           return reply.status(502).send({
             error: 'AI service temporarily unavailable. Check xAI credits at console.x.ai or try again in a few minutes.',
           });
         }
+        request.log.info({
+          event: 'ai_flow_generate_llm_ok',
+          tenantId,
+          modelId: response.modelId,
+          tokensUsed: response.tokensUsed,
+          latencyMs: response.latencyMs,
+          rawContentLength: response.content.length,
+          rawContentPreview: response.content.slice(0, 300),
+        }, 'AI generate-flow: LLM response received');
         rawContent = response.content;
       } catch (err: any) {
+        request.log.error({
+          event: 'ai_flow_generate_llm_throw',
+          tenantId,
+          prompt: prompt.slice(0, 200),
+          err: err?.message,
+        }, 'AI generate-flow: llm.chat() threw');
         return reply.status(502).send({ error: `AI generation failed: ${err?.message ?? 'unknown'}` });
       }
 
@@ -238,15 +260,29 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         } else {
           // Unexpected shape — record as parse error but continue (best-effort)
           parseError = `Unexpected response shape from AI — no nodes array found`;
+          request.log.warn({
+            event: 'ai_flow_generate_unexpected_shape',
+            tenantId,
+            topLevelKeys: Object.keys(parsed ?? {}),
+            rawContentPreview: rawContent.slice(0, 500),
+          }, 'AI generate-flow: parsed OK but no nodes array at expected path');
         }
       } catch (e: any) {
         parseError = `JSON parse failed: ${e.message}`;
+        request.log.warn({
+          event: 'ai_flow_generate_json_parse_fail',
+          tenantId,
+          parseError,
+          rawContent, // full content logged so you can reproduce the issue
+        }, 'AI generate-flow: JSON.parse failed, attempting markdown fence extraction');
         // Attempt to extract JSON from markdown fences
         const match = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (match?.[1]) {
           try {
             flowDefinition = JSON.parse(match[1]) as FlowDefinition;
             parseError = undefined;
+            request.log.info({ event: 'ai_flow_generate_fence_rescued', tenantId },
+              'AI generate-flow: JSON rescued from markdown fences');
           } catch {
             // Keep parseError
           }
@@ -255,6 +291,12 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
       // If we still have no nodes and there's a parse error, fail hard
       if (parseError && (!flowDefinition.nodes || flowDefinition.nodes.length === 0)) {
+        request.log.error({
+          event: 'ai_flow_generate_empty_result',
+          tenantId,
+          parseError,
+          rawContent,
+        }, 'AI generate-flow: failed — empty nodes after all parse attempts');
         return reply.status(502).send({
           error: `AI returned an unparseable response. ${parseError}. Try rephrasing your prompt.`,
         });
@@ -346,8 +388,33 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
             responseFormat: 'json_object',
           },
         );
+        if ((response as any).modelId === 'error') {
+          request.log.error({
+            event: 'ai_flow_modify_dual_failure',
+            tenantId,
+            flowId,
+            rawContent: response.content,
+            latencyMs: response.latencyMs,
+          }, 'AI modify-flow: both primary and fallback models failed');
+          return reply.status(502).send({ error: 'AI service temporarily unavailable. Try again in a few minutes.' });
+        }
+        request.log.info({
+          event: 'ai_flow_modify_llm_ok',
+          tenantId,
+          flowId,
+          modelId: response.modelId,
+          tokensUsed: response.tokensUsed,
+          latencyMs: response.latencyMs,
+          rawContentPreview: response.content.slice(0, 300),
+        }, 'AI modify-flow: LLM response received');
         rawContent = response.content;
       } catch (err: any) {
+        request.log.error({
+          event: 'ai_flow_modify_llm_throw',
+          tenantId,
+          flowId,
+          err: err?.message,
+        }, 'AI modify-flow: llm.chat() threw');
         return reply.status(502).send({ error: `AI modification failed: ${err?.message ?? 'unknown'}` });
       }
 
@@ -358,6 +425,13 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         flowDefinition = JSON.parse(rawContent) as FlowDefinition;
       } catch (e: any) {
         parseError = `JSON parse failed: ${e.message}`;
+        request.log.warn({
+          event: 'ai_flow_modify_json_parse_fail',
+          tenantId,
+          flowId,
+          parseError,
+          rawContent,
+        }, 'AI modify-flow: JSON.parse failed, attempting markdown fence extraction');
         const match = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (match?.[1]) {
           try {
