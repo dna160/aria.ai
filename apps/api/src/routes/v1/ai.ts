@@ -251,12 +251,14 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
         const parsed = JSON.parse(rawContent) as any;
         // Normalise: some models wrap the result — { flowDefinition: { nodes, edges } }
         // or { flow: { nodes, edges } }. Unwrap if top-level has no 'nodes' array.
+        // Always ensure edges is an array — models often omit it
+        const ensureEdges = (f: any): FlowDefinition => ({ ...f, edges: Array.isArray(f.edges) ? f.edges : [] });
         if (Array.isArray(parsed?.nodes)) {
-          flowDefinition = parsed as FlowDefinition;
+          flowDefinition = ensureEdges(parsed);
         } else if (Array.isArray(parsed?.flowDefinition?.nodes)) {
-          flowDefinition = parsed.flowDefinition as FlowDefinition;
+          flowDefinition = ensureEdges(parsed.flowDefinition);
         } else if (Array.isArray(parsed?.flow?.nodes)) {
-          flowDefinition = parsed.flow as FlowDefinition;
+          flowDefinition = ensureEdges(parsed.flow);
         } else {
           // Unexpected shape — record as parse error but continue (best-effort)
           parseError = `Unexpected response shape from AI — no nodes array found`;

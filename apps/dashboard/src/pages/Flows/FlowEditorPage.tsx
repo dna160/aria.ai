@@ -264,7 +264,7 @@ function toDrawflow(flow: FlowDefinition): object {
     };
   });
 
-  flow.edges.forEach(edge => {
+  (flow.edges ?? []).forEach(edge => {
     const srcId = nodeMap[edge.source];
     const tgtId = nodeMap[edge.target];
     if (!srcId || !tgtId) return;
