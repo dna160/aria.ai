@@ -279,16 +279,8 @@ export class ConversationService {
         .set({ state: 'CLOSED_LOST', isActive: false, resolvedAt: new Date(), lastMessageAt: new Date() })
         .where(eq(conversations.id, conv.id));
 
-      const within24h = isWithin24HourWindow(conv.lastMessageAt);
-      if (within24h) {
-        const meta = await this.getMetaClient(conv.tenantId).catch(() => null);
-        if (meta) {
-          await meta.sendText({
-            to: buyer.waPhone,
-            message: 'Kamu telah berhenti. Untuk mulai lagi, chat kami kapan saja.',
-            isWithin24hrWindow: true,
-          }).catch(() => null);
-        }
+      if (isWithin24HourWindow(conv.lastMessageAt)) {
+        await this.sendAndRecord(conv, buyer.waPhone, 'Kamu telah berhenti. Untuk mulai lagi, chat kami kapan saja.');
       }
       return true;
     }
@@ -300,14 +292,8 @@ export class ConversationService {
         .set({ state: 'ESCALATED', lastMessageAt: new Date() })
         .where(eq(conversations.id, conv.id));
 
-      const meta = await this.getMetaClient(conv.tenantId).catch(() => null);
-      const within24h = isWithin24HourWindow(conv.lastMessageAt);
-      if (within24h && meta) {
-        await meta.sendText({
-          to: buyer.waPhone,
-          message: 'Menghubungkan ke tim kami... ⏳',
-          isWithin24hrWindow: true,
-        }).catch(() => null);
+      if (isWithin24HourWindow(conv.lastMessageAt)) {
+        await this.sendAndRecord(conv, buyer.waPhone, 'Menghubungkan ke tim kami... ⏳');
       }
 
       // Operator dashboard shows ESCALATED conversations — no additional push notification configured yet
@@ -341,28 +327,22 @@ export class ConversationService {
     } else if (result.status === 'city_not_found') {
       await this.transitionState(conv.id, 'LOCATION_RECEIVED');
       if (within24h) {
-        const meta = await this.getMetaClient(conv.tenantId).catch(() => null);
-        if (meta) {
-          await meta.sendText({
-            to: (await db.query.buyers.findFirst({ where: eq(buyers.id, conv.buyerId) }))?.waPhone ?? '',
-            message:
-              `Lokasi diterima! Tapi nama kota *${result.rawAddress ?? ''}* tidak ditemukan di database ongkir. ` +
-              'Bisa konfirmasi nama kota / kabupaten kamu? (contoh: Jakarta Selatan, Bandung)',
-            isWithin24hrWindow: true,
-          }).catch(() => null);
+        const buyerRow = await db.query.buyers.findFirst({ where: eq(buyers.id, conv.buyerId) });
+        if (buyerRow) {
+          await this.sendAndRecord(
+            conv,
+            buyerRow.waPhone,
+            `Lokasi diterima! Tapi nama kota *${result.rawAddress ?? ''}* tidak ditemukan di database ongkir. ` +
+            'Bisa konfirmasi nama kota / kabupaten kamu? (contoh: Jakarta Selatan, Bandung)',
+          );
         }
       }
     } else {
       // geocode_failed
       if (within24h) {
-        const meta = await this.getMetaClient(conv.tenantId).catch(() => null);
-        if (meta) {
-          const buyerRow = await db.query.buyers.findFirst({ where: eq(buyers.id, conv.buyerId) });
-          await meta.sendText({
-            to: buyerRow?.waPhone ?? '',
-            message: 'Maaf, tidak bisa membaca lokasi kamu. Bisa ketik alamat lengkap? (nama jalan, kelurahan, kota)',
-            isWithin24hrWindow: true,
-          }).catch(() => null);
+        const buyerRow = await db.query.buyers.findFirst({ where: eq(buyers.id, conv.buyerId) });
+        if (buyerRow) {
+          await this.sendAndRecord(conv, buyerRow.waPhone, 'Maaf, tidak bisa membaca lokasi kamu. Bisa ketik alamat lengkap? (nama jalan, kelurahan, kota)');
         }
       }
     }
@@ -569,16 +549,8 @@ export class ConversationService {
         createdAt: new Date(),
       }).onConflictDoNothing();
 
-      const within24h = isWithin24HourWindow(conv.lastMessageAt);
-      if (within24h) {
-        const meta = await this.getMetaClient(conv.tenantId).catch(() => null);
-        if (meta) {
-          await meta.sendText({
-            to: buyer.waPhone,
-            message: 'Oke, sudah masuk waitlist! Kami akan langsung kabari kalau stok sudah tersedia 😊',
-            isWithin24hrWindow: true,
-          }).catch(() => null);
-        }
+      if (isWithin24HourWindow(conv.lastMessageAt)) {
+        await this.sendAndRecord(conv, buyer.waPhone, 'Oke, sudah masuk waitlist! Kami akan langsung kabari kalau stok sudah tersedia 😊');
       }
     } else {
       await this.sendAiResponse(conv, buyer, text);
@@ -716,16 +688,55 @@ export class ConversationService {
       isWithin24hrWindow: true,
     });
 
-    // Record outbound message
-    await db.insert(messages).values({
-      conversationId: conv.id,
-      tenantId: conv.tenantId,
-      direction: 'outbound',
-      messageType: 'text',
-      textContent: aiText,
-      latencyMs,
-      createdAt: new Date(),
-    }).catch(() => null);
+    // Record outbound message + bump lastMessageAt so the conversation surfaces
+    // at the top of the dashboard list after the bot replies.
+    try {
+      await db.insert(messages).values({
+        conversationId: conv.id,
+        tenantId: conv.tenantId,
+        direction: 'outbound',
+        messageType: 'text',
+        textContent: aiText,
+        latencyMs,
+        createdAt: new Date(),
+      });
+      await db.update(conversations)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(conversations.id, conv.id));
+    } catch (saveErr) {
+      // Non-fatal — message was sent to WA; log so Railway surfaces any schema issues.
+      console.error('[sendAiResponse] Failed to persist outbound message to DB:', saveErr);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Send + persist helper — use this instead of bare meta.sendText() so every
+  // outbound message appears in the dashboard conversation thread.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  private async sendAndRecord(
+    conv: ConvRow,
+    waPhone: string,
+    text: string,
+  ): Promise<void> {
+    const meta = await this.getMetaClient(conv.tenantId).catch(() => null);
+    if (!meta) return;
+    await meta.sendText({ to: waPhone, message: text, isWithin24hrWindow: true }).catch(() => null);
+    try {
+      await db.insert(messages).values({
+        conversationId: conv.id,
+        tenantId: conv.tenantId,
+        direction: 'outbound',
+        messageType: 'text',
+        textContent: text,
+        createdAt: new Date(),
+      });
+      await db.update(conversations)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(conversations.id, conv.id));
+    } catch (err) {
+      console.error('[sendAndRecord] Failed to persist outbound message:', err);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
