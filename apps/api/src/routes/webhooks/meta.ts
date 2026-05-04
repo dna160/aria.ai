@@ -232,25 +232,34 @@ export const metaWebhookRoutes: FastifyPluginAsync = async (fastify) => {
         // Runs after waiting_reply (active execution takes priority over new trigger).
         // We trigger the flow but do NOT return — ConversationService must still
         // run so the message is saved to the conversations table (dashboard visibility).
-        // routeByState will detect activeFlowCount > 0 and skip the LLM response.
+        // skipAI=true when triggered — routeByState (LLM) is bypassed.
         const inboundText = payload.text ?? payload.raw?.text?.body ?? '';
         let keywordTriggered = false;
         if (inboundText) {
+          request.log.info(
+            { tenantId, waId: payload.waId, inboundText },
+            'Checking inbound_keyword flows',
+          );
           try {
             keywordTriggered = await flowEngine.handleKeywordTrigger(
               tenantId,
               inboundBuyer.id,
               inboundText,
             );
-            if (keywordTriggered) {
-              request.log.info(
-                { tenantId, waId: payload.waId, text: inboundText },
-                'Keyword flow triggered — message saved to dashboard, LLM skipped',
-              );
-            }
+            request.log.info(
+              { tenantId, waId: payload.waId, inboundText, keywordTriggered },
+              keywordTriggered
+                ? 'Keyword flow triggered — LLM will be skipped'
+                : 'No keyword flow matched — falling through to ConversationService',
+            );
           } catch (kwErr: unknown) {
-            request.log.warn({ err: kwErr }, 'Keyword trigger check failed — falling through to ConversationService');
+            request.log.warn({ err: kwErr, inboundText }, 'Keyword trigger check failed — falling through to ConversationService');
           }
+        } else {
+          request.log.debug(
+            { tenantId, waId: payload.waId, type: payload.type },
+            'Non-text message — skipping keyword trigger check',
+          );
         }
 
         // ── Always run ConversationService to save the message to the DB ───

@@ -290,17 +290,29 @@ export class FlowEngine {
 
     console.log(`${tag} MATCHED flow="${matched.name}" id=${matched.id}`);
 
-    // Check for already-running execution for this buyer+flow (idempotent)
-    const existingExecution = await db.query.flowExecutions.findFirst({
-      where: and(
-        eq(flowExecutions.flowId, matched.id),
-        eq(flowExecutions.buyerId, buyerId),
-        or(
-          eq(flowExecutions.status, 'running'),
-          eq(flowExecutions.status, 'waiting_reply'),
+    // Check for already-running execution for this buyer+flow (idempotent).
+    // Wrapped in its own try-catch: if the DB enum for 'waiting_reply' is not
+    // yet present (migration 0009 pending), the query throws and we continue
+    // rather than silently returning false (which would let the LLM fire).
+    let existingExecution: { id: string } | undefined;
+    try {
+      existingExecution = await db.query.flowExecutions.findFirst({
+        where: and(
+          eq(flowExecutions.flowId, matched.id),
+          eq(flowExecutions.buyerId, buyerId),
+          or(
+            eq(flowExecutions.status, 'running'),
+            eq(flowExecutions.status, 'waiting_reply'),
+          ),
         ),
-      ),
-    });
+        columns: { id: true },
+      });
+    } catch (idempotencyErr: unknown) {
+      console.warn(
+        `${tag} idempotency check failed (migration pending?) — proceeding to start new execution:`,
+        idempotencyErr,
+      );
+    }
 
     if (existingExecution) {
       console.log(`${tag} ALREADY_RUNNING execution=${existingExecution.id} — consuming message, not re-triggering`);

@@ -72,7 +72,7 @@ export function FlowsListPage() {
       addToast('Flow activated', 'success');
       load();
     } catch (err: any) {
-      addToast(err?.response?.data?.error ?? 'Activation failed', 'error');
+      addToast(err?.response?.data?.message ?? err?.response?.data?.error ?? 'Activation failed', 'error');
     } finally {
       setActionLoading(null);
     }

@@ -475,6 +475,81 @@ export const flowRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   /**
+   * POST /v1/flows/test-keyword
+   * Debug endpoint: given a text string, returns which active inbound_keyword flows
+   * would match it — and why. Useful for diagnosing why a flow is or isn't triggering.
+   * Body: { text: string }
+   */
+  fastify.post<{ Body: { text: string } }>(
+    '/v1/flows/test-keyword',
+    { preHandler: authAndFeature(fastify) },
+    async (request, reply) => {
+      const { tenantId } = request.user;
+      const { text } = request.body;
+
+      if (!text || typeof text !== 'string') {
+        return reply.status(400).send({ error: 'text is required' });
+      }
+
+      const lower = text.toLowerCase().trim();
+
+      const keywordFlows = await db.query.flowDefinitions.findMany({
+        where: and(
+          eq(flowDefinitions.tenantId, tenantId),
+          eq(flowDefinitions.status, 'active'),
+          eq(flowDefinitions.triggerType, 'inbound_keyword'),
+        ),
+        columns: { id: true, name: true, triggerConfig: true, definition: true },
+      });
+
+      const results = keywordFlows.map((flow) => {
+        const cfg = (flow.triggerConfig ?? {}) as { keywords?: unknown };
+        let keywords: string[] = Array.isArray(cfg.keywords)
+          ? (cfg.keywords as string[]).filter(Boolean)
+          : [];
+        let keywordsSource = 'triggerConfig';
+
+        if (keywords.length === 0) {
+          // Fallback: TRIGGER node inside definition (for flows saved before dashboard fix)
+          const def = flow.definition as unknown as {
+            nodes?: Array<{ type: string; config?: Record<string, unknown> }>;
+          };
+          const triggerNode = def?.nodes?.find(n => n.type === 'TRIGGER');
+          const nodeKws = triggerNode?.config?.keywords;
+          if (Array.isArray(nodeKws)) {
+            keywords = (nodeKws as string[]).filter(Boolean);
+            keywordsSource = 'definition.TRIGGER_node';
+          }
+        }
+
+        const matchedKeywords = keywords.filter(kw => lower.includes(kw.toLowerCase().trim()));
+        const wouldTrigger = matchedKeywords.length > 0;
+
+        return {
+          flowId: flow.id,
+          flowName: flow.name,
+          keywords,
+          keywordsSource,
+          wouldTrigger,
+          matchedKeywords,
+          reason: wouldTrigger
+            ? `Matched keyword(s): ${matchedKeywords.join(', ')}`
+            : keywords.length === 0
+              ? 'No keywords configured on this flow'
+              : `Text "${text}" did not contain any of: ${keywords.join(', ')}`,
+        };
+      });
+
+      return reply.send({
+        text,
+        activeKeywordFlows: keywordFlows.length,
+        matches: results.filter(r => r.wouldTrigger).length,
+        results,
+      });
+    },
+  );
+
+  /**
    * POST /v1/flows/:id/test
    * Dry-run: returns the flow's first 3 nodes without sending anything.
    */
