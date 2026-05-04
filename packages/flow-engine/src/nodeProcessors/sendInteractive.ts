@@ -12,6 +12,7 @@ import type { FlowNode, ExecutionContext, SendInteractiveConfig } from '../types
 import type { NodeResult, ProcessorDeps } from './types';
 import { sleep } from './types';
 import { resolveVariables } from '../variableResolver';
+import { saveOutboundMessage } from '../saveOutboundMessage';
 
 export async function sendInteractiveProcessor(
   node: FlowNode,
@@ -43,6 +44,9 @@ export async function sendInteractiveProcessor(
     message: bodyText,
     isWithin24hrWindow: true,
   });
+
+  // Persist to messages table so dashboard shows this send.
+  saveOutboundMessage(ctx.tenantId, ctx.buyerId, bodyText, 'interactive').catch(() => null);
 
   ctx.executionLog.push({
     nodeId: node.id,

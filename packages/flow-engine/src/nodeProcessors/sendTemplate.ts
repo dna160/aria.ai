@@ -14,6 +14,7 @@ import type { NodeResult, ProcessorDeps } from './types';
 import { sleep } from './types';
 import { CooldownChecker } from '../cooldownChecker';
 import { resolveVariables } from '../variableResolver';
+import { saveOutboundMessage } from '../saveOutboundMessage';
 
 const cooldownChecker = new CooldownChecker();
 
@@ -68,6 +69,9 @@ export async function sendTemplateProcessor(
     flowId: ctx.flowId,
     sentAt: new Date(),
   });
+
+  // 5. Persist to messages table (outbound) so dashboard shows this send.
+  saveOutboundMessage(ctx.tenantId, ctx.buyerId, `[template: ${templateName}]`, 'template').catch(() => null);
 
   ctx.executionLog.push({
     nodeId: node.id,

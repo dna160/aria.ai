@@ -12,6 +12,7 @@ import type { FlowNode, ExecutionContext, SendTextConfig } from '../types';
 import type { NodeResult, ProcessorDeps } from './types';
 import { sleep } from './types';
 import { resolveVariables } from '../variableResolver';
+import { saveOutboundMessage } from '../saveOutboundMessage';
 
 export async function sendTextProcessor(
   node: FlowNode,
@@ -40,6 +41,10 @@ export async function sendTextProcessor(
     message,
     isWithin24hrWindow: true, // Caller context guarantees this is a reply within 24h
   });
+
+  // 3. Persist to messages table so the dashboard conversation thread shows this send.
+  //    Fire-and-forget — a DB failure must never block the flow or retry the send.
+  saveOutboundMessage(ctx.tenantId, ctx.buyerId, message, 'text').catch(() => null);
 
   ctx.executionLog.push({
     nodeId: node.id,

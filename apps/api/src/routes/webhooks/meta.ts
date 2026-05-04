@@ -226,7 +226,14 @@ export const metaWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           request.log.warn({ err: flowErr }, 'Flow engine resume check failed — falling through to ConversationService');
         }
 
-        if (resumedByFlowEngine) return;
+        if (resumedByFlowEngine) {
+          // Still persist the buyer's reply so it appears in the dashboard conversation thread.
+          // skipAI=true because the flow engine is handling the response — LLM must not fire.
+          conversationService.handleInbound(tenantId, payload, { skipAI: true }).catch(err => {
+            request.log.error({ err, tenantId, waId: payload.waId }, 'Error saving resumed-flow inbound message');
+          });
+          return;
+        }
 
         // ── Flow Engine: inbound_keyword trigger ───────────────────────────
         // Runs after waiting_reply (active execution takes priority over new trigger).
