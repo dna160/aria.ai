@@ -257,7 +257,7 @@ export const metaWebhookRoutes: FastifyPluginAsync = async (fastify) => {
           }
         } else {
           request.log.debug(
-            { tenantId, waId: payload.waId, type: payload.type },
+            { tenantId, waId: payload.waId, messageType: payload.messageType },
             'Non-text message — skipping keyword trigger check',
           );
         }
