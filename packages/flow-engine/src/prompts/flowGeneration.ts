@@ -35,7 +35,10 @@ export const FLOW_DEFINITION_SCHEMA = JSON.stringify({
 
 export const NODE_CONFIG_SCHEMAS = `
 Node config schemas by type:
-- TRIGGER: {} (empty — trigger node has no config)
+- TRIGGER (inbound_keyword flows): { keywords: string[] }
+    REQUIRED: include the trigger keywords here (e.g. { "keywords": ["INFO", "HARGA", "BELI"] }).
+    Keywords are case-insensitive. Without keywords, the flow will NEVER fire.
+- TRIGGER (all other trigger types): {} (empty)
 - SEND_TEMPLATE: { templateName: string (snake_case), languageCode?: string }
 - SEND_TEXT: { message: string (may contain {{buyer.name}}) }
 - SEND_INTERACTIVE: { type: 'button'|'list', bodyText: string, buttons?: [{id,title}] }
@@ -122,13 +125,30 @@ export function buildFlowGenPrompt(params: {
       ? params.availableTags.map(t => `  - ${t}`).join('\n')
       : '  (none defined yet)';
 
+  // Detect keyword-triggered flow requests so we can add an explicit reminder.
+  // Keywords in the prompt are a strong signal — exact match not required.
+  const lowerPrompt = params.userPrompt.toLowerCase();
+  const isKeywordFlow =
+    lowerPrompt.includes('keyword') ||
+    lowerPrompt.includes('inbound') ||
+    lowerPrompt.includes('when buyer sends') ||
+    lowerPrompt.includes('when customer sends') ||
+    lowerPrompt.includes('when someone sends') ||
+    lowerPrompt.includes('reply with') ||
+    lowerPrompt.includes('triggered by message') ||
+    lowerPrompt.includes('triggered by keyword');
+
+  const keywordReminder = isKeywordFlow
+    ? `\nIMPORTANT: This is an inbound_keyword flow. The TRIGGER node config MUST include a keywords array.\nExample: { "keywords": ["INFO", "HARGA"] }. Without keywords the flow will never fire.\n`
+    : '';
+
   return [
     `Build a WhatsApp automation flow for this request:`,
     `"${params.userPrompt}"`,
     ``,
     params.productContext ? `Product context: ${params.productContext}` : '',
     params.audienceSegment ? `Target audience: ${params.audienceSegment}` : '',
-    ``,
+    keywordReminder,
     `Tenant's approved templates:`,
     templateList,
     ``,

@@ -14,6 +14,35 @@ import { RiskScoreService } from '../../services/riskScore.service';
 
 const riskScoreService = new RiskScoreService();
 
+/**
+ * For inbound_keyword flows: if triggerConfig.keywords is empty/missing, pull keywords
+ * from the TRIGGER node inside the flow definition. AI-generated flows store keywords
+ * in node.config but may not have them in triggerConfig — this ensures they're always
+ * synced so handleKeywordTrigger can match them.
+ */
+function resolveTriggerConfig(
+  triggerType: string,
+  triggerConfig: Record<string, unknown>,
+  definition: Record<string, unknown>,
+): Record<string, unknown> {
+  if (triggerType !== 'inbound_keyword') return triggerConfig;
+
+  const existingKws = triggerConfig.keywords;
+  if (Array.isArray(existingKws) && existingKws.filter(Boolean).length > 0) {
+    return triggerConfig; // Already has keywords — nothing to sync
+  }
+
+  // Pull keywords from TRIGGER node inside definition
+  const nodes = (definition as { nodes?: Array<{ type: string; config?: Record<string, unknown> }> }).nodes;
+  const triggerNode = Array.isArray(nodes) ? nodes.find(n => n.type === 'TRIGGER') : undefined;
+  const nodeKws = triggerNode?.config?.keywords;
+  if (Array.isArray(nodeKws) && nodeKws.filter(Boolean).length > 0) {
+    return { ...triggerConfig, keywords: nodeKws };
+  }
+
+  return triggerConfig;
+}
+
 const authAndFeature = (fastify: Parameters<FastifyPluginAsync>[0]) => [
   fastify.authenticate,
   requireFeature('flow_builder'),
@@ -93,6 +122,11 @@ export const flowRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(400).send({ error: 'name, triggerType, and definition are required' });
       }
 
+      // For keyword flows: if triggerConfig.keywords is empty, pull keywords from the
+      // TRIGGER node inside the definition. This ensures AI-generated flows (which put
+      // keywords in node.config but not in triggerConfig) are always matchable.
+      const resolvedTriggerConfig = resolveTriggerConfig(triggerType, triggerConfig, definition);
+
       const [flow] = await db
         .insert(flowDefinitions)
         .values({
@@ -100,7 +134,7 @@ export const flowRoutes: FastifyPluginAsync = async (fastify) => {
           name,
           description,
           triggerType,
-          triggerConfig,
+          triggerConfig: resolvedTriggerConfig,
           definition,
           status: 'draft', // Always draft on creation
           version: 1,
@@ -171,14 +205,20 @@ export const flowRoutes: FastifyPluginAsync = async (fastify) => {
 
       const { name, description, triggerType, triggerConfig, definition } = request.body;
 
+      // For keyword flows: sync keywords from TRIGGER node into triggerConfig if missing.
+      const effectiveTriggerType = triggerType ?? existing.triggerType;
+      const effectiveTriggerConfig = triggerConfig ?? (existing.triggerConfig as Record<string, unknown>);
+      const effectiveDefinition = definition ?? (existing.definition as Record<string, unknown>);
+      const resolvedTriggerConfig = resolveTriggerConfig(effectiveTriggerType, effectiveTriggerConfig, effectiveDefinition);
+
       const [updated] = await db
         .update(flowDefinitions)
         .set({
           name: name ?? existing.name,
           description: description ?? existing.description,
-          triggerType: triggerType ?? existing.triggerType,
-          triggerConfig: triggerConfig ?? existing.triggerConfig,
-          definition: definition ?? existing.definition,
+          triggerType: effectiveTriggerType,
+          triggerConfig: resolvedTriggerConfig,
+          definition: effectiveDefinition,
           version: existing.version + 1,
           updatedAt: new Date(),
         })
@@ -241,6 +281,32 @@ export const flowRoutes: FastifyPluginAsync = async (fastify) => {
 
         if (score > 60) {
           warning = `Risk score is ${score}/100 (Caution). Consider reducing broadcast frequency or improving template quality.`;
+        }
+
+        // Keyword flows must have at least one keyword configured.
+        // Without keywords, handleKeywordTrigger will never match and the LLM will always fire instead.
+        if (existing.triggerType === 'inbound_keyword') {
+          const cfg = (existing.triggerConfig ?? {}) as { keywords?: unknown };
+          let keywords: string[] = Array.isArray(cfg.keywords)
+            ? (cfg.keywords as string[]).filter(Boolean)
+            : [];
+
+          if (keywords.length === 0) {
+            // Fallback: check TRIGGER node inside the flow definition (for older/AI-generated flows)
+            const def = existing.definition as unknown as { nodes?: Array<{ type: string; config?: Record<string, unknown> }> };
+            const triggerNode = def?.nodes?.find(n => n.type === 'TRIGGER');
+            const nodeKws = triggerNode?.config?.keywords;
+            if (Array.isArray(nodeKws)) keywords = (nodeKws as string[]).filter(Boolean);
+          }
+
+          if (keywords.length === 0) {
+            return reply.status(422).send({
+              error: 'keyword_flow_no_keywords',
+              message:
+                'Cannot activate a keyword-triggered flow with no keywords. ' +
+                'Open the flow editor, click the TRIGGER node, and add at least one trigger keyword (e.g. "INFO", "HARGA") before activating.',
+            });
+          }
         }
       }
 

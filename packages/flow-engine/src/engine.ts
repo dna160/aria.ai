@@ -243,6 +243,9 @@ export class FlowEngine {
     inboundText: string,
     conversationId?: string,
   ): Promise<boolean> {
+    const tag = `[FlowEngine][keyword] tenant=${tenantId} buyer=${buyerId}`;
+    const lower = inboundText.toLowerCase().trim();
+
     // Load all active inbound_keyword flows for this tenant
     const keywordFlows = await db.query.flowDefinitions.findMany({
       where: and(
@@ -250,20 +253,24 @@ export class FlowEngine {
         eq(flowDefinitions.status, 'active'),
         eq(flowDefinitions.triggerType, 'inbound_keyword'),
       ),
-      columns: { id: true, triggerConfig: true, definition: true },
+      columns: { id: true, name: true, triggerConfig: true, definition: true },
     });
 
-    if (keywordFlows.length === 0) return false;
+    if (keywordFlows.length === 0) {
+      console.log(`${tag} NO_FLOWS — no active inbound_keyword flows found for tenant`);
+      return false;
+    }
 
-    const lower = inboundText.toLowerCase().trim();
+    console.log(`${tag} text="${inboundText}" checking ${keywordFlows.length} flow(s)`);
 
     // Find first flow whose keywords list contains a match.
     // Keywords are read from triggerConfig.keywords (set on save).
     // Fallback: also check the TRIGGER node's config.keywords inside definition
     // for flows saved before the dashboard fix was deployed.
-    const matched = keywordFlows.find(flow => {
+    let matched: typeof keywordFlows[number] | undefined;
+    for (const flow of keywordFlows) {
       const cfg = (flow.triggerConfig ?? {}) as TriggerConfig;
-      let keywords = cfg.keywords ?? [];
+      let keywords: string[] = Array.isArray(cfg.keywords) ? cfg.keywords : [];
       if (keywords.length === 0) {
         // Fallback: read from TRIGGER node inside definition
         const def = flow.definition as unknown as FlowDefinition;
@@ -271,10 +278,17 @@ export class FlowEngine {
         const nodeKws = (triggerNode?.config as Record<string, unknown>)?.keywords;
         if (Array.isArray(nodeKws)) keywords = nodeKws as string[];
       }
-      return keywords.some(kw => lower.includes(kw.toLowerCase().trim()));
-    });
+      const hit = keywords.some(kw => lower.includes(kw.toLowerCase().trim()));
+      console.log(`${tag} flow="${flow.name}" id=${flow.id} keywords=[${keywords.join(', ')}] match=${hit}`);
+      if (hit) { matched = flow; break; }
+    }
 
-    if (!matched) return false;
+    if (!matched) {
+      console.log(`${tag} NO_MATCH — none of the ${keywordFlows.length} flow(s) matched text="${inboundText}"`);
+      return false;
+    }
+
+    console.log(`${tag} MATCHED flow="${matched.name}" id=${matched.id}`);
 
     // Check for already-running execution for this buyer+flow (idempotent)
     const existingExecution = await db.query.flowExecutions.findFirst({
@@ -288,14 +302,24 @@ export class FlowEngine {
       ),
     });
 
-    if (existingExecution) return true; // already running — consume message, don't re-trigger
+    if (existingExecution) {
+      console.log(`${tag} ALREADY_RUNNING execution=${existingExecution.id} — consuming message, not re-triggering`);
+      return true;
+    }
 
     // Load buyer and check compliance
     const buyer = await db.query.buyers.findFirst({
       where: eq(buyers.id, buyerId),
     });
 
-    if (!buyer || buyer.doNotContact) return false;
+    if (!buyer) {
+      console.error(`${tag} BUYER_NOT_FOUND — buyer record missing, cannot start flow`);
+      return false;
+    }
+    if (buyer.doNotContact) {
+      console.warn(`${tag} DO_NOT_CONTACT — buyer opted out, suppressing flow`);
+      return false;
+    }
 
     const buyerCtx: BuyerContext = {
       id: buyer.id,
