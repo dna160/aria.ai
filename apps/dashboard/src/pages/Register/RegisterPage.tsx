@@ -42,7 +42,8 @@ export function RegisterPage() {
       } else if (e.response?.data?.error) {
         setError(e.response.data.error);
       } else if (e.request) {
-        setError('Cannot reach the API. Check your connection or try again.');
+        const target = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        setError(`Cannot reach the API (${target}). Check CORS or whether the API service is running.`);
       } else {
         setError((e as { message?: string }).message ?? 'Registration failed.');
       }
