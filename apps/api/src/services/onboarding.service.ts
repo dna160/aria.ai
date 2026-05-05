@@ -1,0 +1,148 @@
+﻿/**
+ * @CLAUDE_CONTEXT
+ * Package : apps/api
+ * File    : src/services/onboarding.service.ts
+ * Role    : Lynker WABA registration. Invisible to Lynker — no BSP branding exposed.
+ *           Meta Direct API — tenants connect their own WABA via Meta Business Manager.
+ *           Manual fallback: ops team provisions and calls PUT /internal/tenants/:id/meta-activated.
+ * Exports : OnboardingService class
+ */
+import { db, tenants, opsTickets } from '@aria/db';
+import { eq } from '@aria/db';
+import { config } from '../config';
+import { encrypt } from '../utils/crypto';
+import { MetaClient } from '@aria/meta';
+import type { OnboardingFormData } from '@aria/shared';
+import { WabaPoolService } from './wabaPool.service';
+
+type TenantRow = typeof tenants.$inferSelect;
+
+export type CompleteOnboardingInput =
+  | { mode: 'pool' }
+  | { mode: 'manual'; metaPhoneNumberId: string; wabaId: string; metaAccessToken: string };
+
+export type CompleteOnboardingResult =
+  | { success: true; displayPhone: string }
+  | { success: false; reason: 'pool_exhausted' | 'invalid_credentials' | 'connection_failed'; message: string };
+
+export class OnboardingService {
+  private wabaPool = new WabaPoolService();
+
+  /**
+   * Two-path WABA connection (PRD §3.3 + user clarification):
+   *   pool   — auto-assign from pre-provisioned waba_pool accounts
+   *   manual — Lynker provides their own Meta WABA credentials
+   */
+  async completeOnboarding(
+    tenantId: string,
+    input: CompleteOnboardingInput,
+  ): Promise<CompleteOnboardingResult> {
+    if (input.mode === 'pool') {
+      const result = await this.wabaPool.assignToTenant(tenantId);
+      if (!result.assigned) {
+        // Fall through to ops ticket — existing manual flow
+        const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+        await db.insert(opsTickets).values({
+          type: 'waba_assignment_required',
+          tenantId,
+          payload: { storeName: tenant?.storeName ?? '' },
+          status: 'open',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        return {
+          success: false,
+          reason: 'pool_exhausted',
+          message: 'We are scaling up capacity. Our team will reach out within 24 hours to connect your WhatsApp.',
+        };
+      }
+      const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+      return { success: true, displayPhone: tenant?.displayPhoneNumber ?? result.phoneNumberId };
+    }
+
+    // Manual mode: validate, encrypt, persist
+    const { metaPhoneNumberId, wabaId, metaAccessToken } = input;
+    if (!metaPhoneNumberId || !wabaId || !metaAccessToken) {
+      return { success: false, reason: 'invalid_credentials', message: 'Phone Number ID, WABA ID, and Access Token are required.' };
+    }
+
+    // Optional connection test — soft validation only.
+    // Credentials are ALWAYS saved so the tenant's metaPhoneNumberId is persisted
+    // and the inbound webhook can resolve them. A failed connection test just means
+    // we can't verify the display phone number right now (transient Meta API issue,
+    // propagation delay, etc.) — the webhook handshake will confirm it later.
+    let displayPhone = metaPhoneNumberId;
+    try {
+      const client = new MetaClient(metaAccessToken, metaPhoneNumberId);
+      const info = await client.getPhoneNumberInfo();
+      displayPhone = (info as any)?.display_phone_number ?? metaPhoneNumberId;
+    } catch {
+      // Soft-fail: log but proceed — credentials are saved regardless
+      // so inbound webhooks can still route to this tenant.
+    }
+
+    const encryptedToken = encrypt(metaAccessToken, config.WABA_POOL_ENCRYPTION_KEY);
+    await db.update(tenants).set({
+      metaPhoneNumberId,
+      wabaId,
+      metaAccessToken: encryptedToken,
+      displayPhoneNumber: displayPhone,
+      wabaStatus: 'active',
+      updatedAt: new Date(),
+    }).where(eq(tenants.id, tenantId));
+
+    return { success: true, displayPhone };
+  }
+
+  /**
+   * Called from the tenants route when a Lynker triggers onboarding.
+   */
+  async startOnboarding(tenant: TenantRow): Promise<void> {
+    // Map tenant fields to OnboardingFormData shape with available info
+    const formData: OnboardingFormData = {
+      storeName: tenant.storeName,
+      displayPhoneNumber: tenant.displayPhoneNumber ?? '',
+      metaBusinessId: tenant.metaBusinessId ?? '',
+      originCityId: tenant.originCityId ?? '',
+      originCityName: tenant.originCityName ?? '',
+      ownerName: tenant.storeName, // Placeholder — full form data comes via submitOnboarding
+      ownerEmail: '',
+      businessCategory: 'retail',
+    };
+    await this.submitOnboarding(tenant.id, formData);
+  }
+
+  async submitOnboarding(tenantId: string, formData: OnboardingFormData): Promise<void> {
+    // Persist form data to tenant record
+    await db.update(tenants)
+      .set({
+        storeName: formData.storeName,
+        displayPhoneNumber: formData.displayPhoneNumber,
+        metaBusinessId: formData.metaBusinessId,
+        originCityId: formData.originCityId,
+        originCityName: formData.originCityName,
+        updatedAt: new Date(),
+      })
+      .where(eq(tenants.id, tenantId));
+
+    // Meta Direct: always use manual ops fallback —
+    // ops provisions the WABA in Meta Business Manager and calls PUT /internal/tenants/:id/meta-activated
+    await this.registerWABA_ManualFallback(tenantId, formData);
+  }
+
+  async registerWABA_ManualFallback(tenantId: string, formData: OnboardingFormData): Promise<void> {
+    await db.update(tenants)
+      .set({ wabaStatus: 'manual_required', updatedAt: new Date() })
+      .where(eq(tenants.id, tenantId));
+
+    await db.insert(opsTickets).values({
+      type: 'waba_registration',
+      tenantId,
+      payload: formData as unknown as Record<string, unknown>,
+      status: 'open',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+}

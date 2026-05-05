@@ -1,0 +1,15 @@
+﻿/**
+ * @CLAUDE_CONTEXT
+ * Package : packages/pantheon
+ * File    : src/index.ts
+ * Role    : Public API of the @aria/pantheon package.
+ *           Re-exports all types and service functions needed by apps/api and apps/worker.
+ * Exports : types, genome functions, dialog functions, classifier
+ */
+export * from './types';
+export { deriveScores, scoreConfidence, applyConfidencePenalty, defaultGenome, mergeScores, buildSeededGenome } from './genome/builder';
+export { inferRegionFromPhone, buildSeededScores } from './genome/culturalPriors';
+export { extractSignals, extractName } from './genome/signals';
+export { classifyMoment } from './dialog/momentClassifier';
+export { buildDialogCache, buildFallbackCache } from './dialog/cacheBuilder';
+export { selectDialog, computeRWI } from './dialog/selector';

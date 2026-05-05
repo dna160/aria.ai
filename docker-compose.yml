@@ -1,0 +1,79 @@
+﻿version: '3.8'
+
+# Aria local development stack.
+# Mirrors Railway production environment exactly (Alpine Linux containers).
+# Usage: docker-compose up --build
+#
+# Dashboard runs separately via Vite dev server:
+#   pnpm --filter @aria/dashboard dev
+#
+# Requires a .env file at the repo root (copy from .env.example and fill in values).
+# DATABASE_URL and REDIS_URL are overridden below to point at the Docker network
+# hostnames (postgres / redis), NOT localhost.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: aria
+      POSTGRES_USER: aria
+      POSTGRES_PASSWORD: localpassword
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U aria']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      # Override to use Docker network hostnames instead of localhost
+      - DATABASE_URL=postgresql://aria:localpassword@postgres:5432/aria?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - CORS_ORIGIN=http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    env_file:
+      - .env
+    environment:
+      # Override to use Docker network hostnames instead of localhost
+      - DATABASE_URL=postgresql://aria:localpassword@postgres:5432/aria?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+volumes:
+  pgdata:

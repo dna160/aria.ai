@@ -1,0 +1,25 @@
+﻿# Test runner image — installs full monorepo with dev deps and runs vitest
+FROM node:20-alpine
+RUN apk add --no-cache dumb-init python3 make g++
+RUN npm install -g turbo@2 \
+    && corepack enable \
+    && corepack prepare pnpm@9 --activate
+
+WORKDIR /app
+COPY . .
+
+# Install ALL deps including devDependencies (needed for vitest, tsx, etc)
+RUN pnpm install --frozen-lockfile
+
+# Build workspace packages in dependency order
+RUN pnpm -F @aria/shared build || true
+RUN pnpm -F @aria/meta build || true
+RUN pnpm -F @aria/db build
+RUN pnpm -F @aria/flow-engine build
+# Build remaining packages so all services are resolvable in vitest
+RUN pnpm -F @aria/pantheon build || true
+RUN pnpm -F @aria/ai build || true
+RUN pnpm -F @aria/payments build || true
+RUN pnpm -F  build || true
+
+CMD ["sh"]
