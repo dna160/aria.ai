@@ -36,7 +36,7 @@ const updateTenantSchema = z.object({
 
 function assertInternalApiKey(request: any, reply: any): boolean {
   const apiKey = request.headers['x-internal-api-key'];
-  if (apiKey !== config.LYNK_INTERNAL_API_KEY) {
+  if (apiKey !== config.ARIA_INTERNAL_API_KEY) {
     reply.status(403).send({ error: 'Forbidden' });
     return false;
   }

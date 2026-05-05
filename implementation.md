@@ -499,7 +499,7 @@ All routes are prefixed `/api` when registered. Full paths shown below.
 Seed all repeatable jobs once after first deploy:
 ```bash
 curl -X POST https://your-api.railway.app/internal/flows/seed-cron \
-  -H "x-api-key: $LYNK_INTERNAL_API_KEY"
+  -H "x-api-key: $ARIA_INTERNAL_API_KEY"
 ```
 Source: `apps/api/src/routes/internal/cron.ts`
 
@@ -884,7 +884,7 @@ onboardingApi.status()                                    // GET /onboarding/sta
 |-----------|------|----------|
 | JWT auth | `apps/api/src/plugins/auth.ts` | `fastify.authenticate` preHandler; populates `request.user.tenantId` |
 | Feature gate | `apps/api/src/middleware/featureGate.ts` | `requireFeature(flag)` — stub pass-through; pluggable |
-| Internal API key | `apps/api/src/middleware/internalApiKey.ts` | Checks `x-internal-api-key` header === `config.LYNK_INTERNAL_API_KEY` |
+| Internal API key | `apps/api/src/middleware/internalApiKey.ts` | Checks `x-internal-api-key` header === `config.ARIA_INTERNAL_API_KEY` |
 | Meta HMAC | `apps/api/src/middleware/metaSignature.ts` | Verifies `x-hub-signature-256` on Meta webhook |
 | Rate limit | `apps/api/src/plugins/rateLimit.ts` | Global request rate limit |
 | CORS | `apps/api/src/plugins/cors.ts` | Set `CORS_ORIGIN` to dashboard domain |
@@ -904,7 +904,7 @@ const tenantId = (request as any).user?.tenantId as string;
 DATABASE_URL=postgresql://...        # Auto-set by Railway PostgreSQL plugin
 REDIS_URL=redis://...                # Auto-set by Railway Redis plugin
 JWT_SECRET=<min 32 chars, random>
-LYNK_INTERNAL_API_KEY=<min 10 chars>
+ARIA_INTERNAL_API_KEY=<min 10 chars>
 XAI_API_KEY=<from console.x.ai>
 WABA_POOL_ENCRYPTION_KEY=<64 hex chars>   # openssl rand -hex 32
 META_ACCESS_TOKEN=<system user token>      # Fallback only; per-tenant tokens stored in DB
@@ -1085,7 +1085,7 @@ curl https://your-api.railway.app/health
 
 # 5. Seed cron jobs (once only):
 curl -X POST https://your-api.railway.app/internal/flows/seed-cron \
-  -H "x-api-key: $LYNK_INTERNAL_API_KEY"
+  -H "x-api-key: $ARIA_INTERNAL_API_KEY"
 
 # 6. Configure Meta webhook in Meta Developer Console:
 #    Callback URL: https://your-api.railway.app/webhooks/meta
@@ -1111,7 +1111,7 @@ curl -X POST https://your-api.railway.app/internal/flows/seed-cron \
 - [ ] `NODE_ENV=production` on API and Worker
 - [ ] `CORS_ORIGIN` set to exact dashboard domain (not `*`)
 - [ ] `MIDTRANS_IS_PRODUCTION=true` after testing complete
-- [ ] `LYNK_INTERNAL_API_KEY` not guessable; `/internal/**` routes not publicly exposed
+- [ ] `ARIA_INTERNAL_API_KEY` not guessable; `/internal/**` routes not publicly exposed
 
 ---
 

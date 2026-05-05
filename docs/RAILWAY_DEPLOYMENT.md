@@ -32,7 +32,7 @@ REDIS_URL=redis://...               # auto-set by Railway Redis plugin
 JWT_SECRET=<min 32 chars, random>
 
 # ── Internal API ─────────────────────────────────────────────────────────────
-LYNK_INTERNAL_API_KEY=<min 10 chars, random>
+ARIA_INTERNAL_API_KEY=<min 10 chars, random>
 
 # ── LLM (xAI Grok) ───────────────────────────────────────────────────────────
 XAI_API_KEY=<from console.x.ai>
@@ -126,7 +126,7 @@ Create a Railway variable group (or use Railway's reference syntax) for secrets 
 
 ```
 JWT_SECRET              → shared
-LYNK_INTERNAL_API_KEY   → shared
+ARIA_INTERNAL_API_KEY   → shared
 XAI_API_KEY             → shared
 WABA_POOL_ENCRYPTION_KEY → shared
 META_APP_SECRET         → shared
@@ -167,7 +167,7 @@ pnpm -F @aria/db migrate
 
 # 2. Seed initial cron jobs (one-time, via internal API)
 curl -X POST https://your-api.railway.app/internal/flows/seed-cron \
-  -H "x-api-key: $LYNK_INTERNAL_API_KEY"
+  -H "x-api-key: $ARIA_INTERNAL_API_KEY"
 ```
 
 ### 4.3 Rolling Upgrade (existing database)
@@ -255,7 +255,7 @@ curl https://your-api.railway.app/health
 
 # 5. Seed cron jobs (once only):
 curl -X POST https://your-api.railway.app/internal/flows/seed-cron \
-  -H "x-api-key: $LYNK_INTERNAL_API_KEY"
+  -H "x-api-key: $ARIA_INTERNAL_API_KEY"
 
 # 6. Verify Meta webhook (Meta will send a GET challenge):
 # → Check logs: "Meta webhook verified"
@@ -293,14 +293,14 @@ For non-additive changes (column renames, type changes), a manual DB backup + re
 
 - [ ] `JWT_SECRET` is at least 32 chars, cryptographically random
 - [ ] `WABA_POOL_ENCRYPTION_KEY` is exactly 64 hex chars (openssl rand -hex 32)
-- [ ] `LYNK_INTERNAL_API_KEY` is at least 10 chars, not guessable
+- [ ] `ARIA_INTERNAL_API_KEY` is at least 10 chars, not guessable
 - [ ] `META_APP_SECRET` is set — webhook HMAC verification is enforced in production
 - [ ] `META_WEBHOOK_VERIFY_TOKEN` is non-default (change from `aria_webhook_verify`)
 - [ ] `NODE_ENV=production` is set on API and Worker
 - [ ] `CORS_ORIGIN` is set to exact dashboard domain (not `*`)
 - [ ] Midtrans `MIDTRANS_IS_PRODUCTION=true` (after testing is complete)
 - [ ] Railway service is not publicly exposing the internal `**/internal/**` routes
-  - These routes are guarded by `x-api-key` header; keep `LYNK_INTERNAL_API_KEY` secret
+  - These routes are guarded by `x-api-key` header; keep `ARIA_INTERNAL_API_KEY` secret
 - [ ] S3 bucket policy: API service role has read/write; no public access
 - [ ] Sentry DSN is set for error tracking in production
 

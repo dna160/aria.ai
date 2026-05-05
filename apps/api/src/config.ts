@@ -16,7 +16,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string(),
   JWT_SECRET: z.string().min(32),
-  LYNK_INTERNAL_API_KEY: z.string().min(10),
+  ARIA_INTERNAL_API_KEY: z.string().min(10),
   XAI_API_KEY: z.string().default(''),
   XAI_BASE_URL: z.string().url().default('https://api.x.ai/v1'),
   LLM_MODEL: z.string().default('grok-4-1-fast-reasoning'),

@@ -180,7 +180,7 @@ GET  /internal/waba-pool        list pool accounts + assignment status (X-Intern
 POST /internal/waba-pool        add account to pool (body: phoneNumberId, displayPhone, wabaId, accessToken)
 ```
 
-Use existing internal-API-key middleware (look for it; if absent, create `apps/api/src/middleware/internalApiKey.ts` checking `request.headers['x-internal-api-key'] === config.LYNK_INTERNAL_API_KEY`).
+Use existing internal-API-key middleware (look for it; if absent, create `apps/api/src/middleware/internalApiKey.ts` checking `request.headers['x-internal-api-key'] === config.ARIA_INTERNAL_API_KEY`).
 
 Register the route in `apps/api/src/index.ts`.
 
