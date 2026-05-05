@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-// Relative baseURL — Vite proxy handles /api → localhost:3000 in dev,
-// Nginx proxy_pass handles it in production (see apps/dashboard/Dockerfile).
-// Override with VITE_API_URL build var if you need a direct cross-origin URL.
-const BASE_URL = import.meta.env.VITE_API_URL ?? '';
+// VITE_API_URL is baked in at build time (set as a Build Variable in Railway).
+// Falls back to localhost for local dev.
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
