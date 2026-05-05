@@ -2,11 +2,9 @@
  * @CLAUDE_CONTEXT
  * Package : apps/api
  * File    : src/routes/v1/tenants.ts
- * Role    : Tenant CRUD routes. Handles Lynk.id new-member webhook, tenant info,
- *           onboarding flow trigger, and internal ops WATI activation endpoint.
+ * Role    : Tenant CRUD + internal ops routes.
  * Exports : tenantRoutes (Fastify plugin)
  * Imports : @aria/db, @aria/shared
- * DO NOT  : Expose WATI terminology in API responses — use "messaging" abstraction
  */
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
@@ -19,7 +17,6 @@ import { OnboardingService } from '../../services/onboarding.service';
 const onboardingService = new OnboardingService();
 
 const createTenantSchema = z.object({
-  lynkUserId: z.string().min(1),
   storeName: z.string().min(1),
   originCityName: z.string().optional(),
   displayPhoneNumber: z.string().optional(),
@@ -46,8 +43,8 @@ function assertInternalApiKey(request: any, reply: any): boolean {
 export const tenantRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * POST /v1/tenants
-   * Called by Lynk.id platform when a new member subscribes to Aria.
-   * Uses internal API key auth instead of JWT (machine-to-machine).
+   * Internal: provision a tenant without going through the registration flow.
+   * Used by ops tooling only.
    */
   fastify.post('/v1/tenants', async (request, reply) => {
     if (!assertInternalApiKey(request, reply)) return;
@@ -61,19 +58,11 @@ export const tenantRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const data = parsed.data;
-
-    // Check for existing tenant
-    const existing = await db.query.tenants.findFirst({
-      where: eq(tenants.lynkUserId, data.lynkUserId),
-    });
-    if (existing) {
-      return reply.status(409).send({ error: 'Tenant already exists', tenantId: existing.id });
-    }
-
     const [tenant] = await db
       .insert(tenants)
       .values({
-        lynkUserId: data.lynkUserId,
+        email: `ops-${Date.now()}@internal.aria`,
+        passwordHash: '',
         storeName: data.storeName,
         originCityName: data.originCityName ?? null,
         displayPhoneNumber: data.displayPhoneNumber ?? null,
@@ -81,15 +70,8 @@ export const tenantRoutes: FastifyPluginAsync = async (fastify) => {
       })
       .returning();
 
-    request.log.info({ tenantId: tenant.id, lynkUserId: data.lynkUserId }, 'Tenant created');
-
-    return reply.status(201).send({
-      id: tenant.id,
-      lynkUserId: tenant.lynkUserId,
-      storeName: tenant.storeName,
-      wabaStatus: tenant.wabaStatus,
-      createdAt: tenant.createdAt,
-    });
+    request.log.info({ tenantId: tenant.id }, 'Tenant provisioned by ops');
+    return reply.status(201).send({ id: tenant.id, storeName: tenant.storeName, createdAt: tenant.createdAt });
   });
 
   /**

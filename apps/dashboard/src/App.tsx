@@ -3,6 +3,7 @@ import { Component, type ReactNode } from 'react';
 import { Layout } from './components/Layout';
 import { CanvasLayout } from './components/CanvasLayout';
 import { LoginPage } from './pages/Login/LoginPage';
+import { RegisterPage } from './pages/Register/RegisterPage';
 import { OnboardingPage } from './pages/Onboarding/OnboardingPage';
 import { ProductsPage } from './pages/Products/ProductsPage';
 import { OrdersPage } from './pages/Orders/OrdersPage';
@@ -113,6 +114,7 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<OverviewPage />} />

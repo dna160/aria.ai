@@ -157,9 +157,11 @@ export interface CreateProductPayload {
 }
 
 export const authApi = {
-  login: (email: string, _password: string) =>
-    api.post<{ token: string }>('/auth/login', { lynkUserId: email }),
-  me: () => api.get<{ tenantId: string; lynkUserId: string }>('/auth/me'),
+  register: (email: string, password: string, storeName: string) =>
+    api.post<{ token: string }>('/auth/register', { email, password, storeName }),
+  login: (email: string, password: string) =>
+    api.post<{ token: string }>('/auth/login', { email, password }),
+  me: () => api.get<{ tenantId: string; email: string }>('/auth/me'),
 };
 
 export const tenantApi = {

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 export function LoginPage() {
@@ -20,24 +20,15 @@ export function LoginPage() {
         response?: { status?: number; data?: { error?: string; message?: string } };
         request?: unknown;
         message?: string;
-        code?: string;
       };
-
       if (e.response) {
-        // Server responded with a non-2xx status
         const msg = e.response.data?.error ?? e.response.data?.message;
-        setError(`Server error ${e.response.status}: ${msg ?? 'Unknown error'}`);
+        setError(e.response.status === 401 ? 'Invalid email or password.' : `Error ${e.response.status}: ${msg ?? 'Unknown error'}`);
       } else if (e.request) {
-        // Request was sent but no response received — CORS, network, or API down
         const apiUrl = (window as { __ARIA_API_URL__?: string }).__ARIA_API_URL__ ?? '(API_URL not set)';
-        setError(
-          `Cannot reach API. Possible causes:\n` +
-          `• API is down (check Railway → API service logs)\n` +
-          `• CORS blocked (OPTIONS preflight failed)\n` +
-          `• Wrong API URL — currently targeting: ${apiUrl}`
-        );
+        setError(`Cannot reach API.\n• API may be down\n• CORS blocked\n• Wrong API URL: ${apiUrl}`);
       } else {
-        setError(e.message ?? 'Login failed');
+        setError((e as { message?: string }).message ?? 'Login failed');
       }
     }
   }
@@ -62,15 +53,15 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-secondary mb-1.5" htmlFor="email">Lynk User ID / Email</label>
-              <input id="email" type="text" autoComplete="username" required value={email}
-                onChange={(e) => setEmail(e.target.value)} placeholder="your-lynk-user-id"
+              <label className="block text-sm font-medium text-secondary mb-1.5" htmlFor="email">Email</label>
+              <input id="email" type="email" autoComplete="email" required value={email}
+                onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
                 className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-sm text-primary placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition" />
             </div>
             <div>
               <label className="block text-sm font-medium text-secondary mb-1.5" htmlFor="password">Password</label>
-              <input id="password" type="password" autoComplete="current-password" value={password}
-                onChange={(e) => setPassword(e.target.value)} placeholder="(not required in dev)"
+              <input id="password" type="password" autoComplete="current-password" required value={password}
+                onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
                 className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-sm text-primary placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition" />
             </div>
             {error && (
@@ -80,14 +71,23 @@ export function LoginPage() {
             )}
             <button type="submit" disabled={loginPending}
               className="w-full bg-accent hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors">
-              {loginPending ? <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>Signing in…
-              </span> : 'Sign in'}
+              {loginPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>Signing in…
+                </span>
+              ) : 'Sign in'}
             </button>
           </form>
+
+          <p className="mt-6 text-center text-sm text-secondary">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-accent hover:text-indigo-400 font-medium transition-colors">
+              Create one free
+            </Link>
+          </p>
         </div>
         <p className="text-center text-xs text-secondary mt-6">&copy; {new Date().getFullYear()} Aria. All rights reserved.</p>
       </div>

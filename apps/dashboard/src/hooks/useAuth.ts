@@ -21,6 +21,15 @@ export function useAuth() {
     },
   });
 
+  const registerMutation = useMutation({
+    mutationFn: ({ email, password, storeName }: { email: string; password: string; storeName: string }) =>
+      authApi.register(email, password, storeName).then((r) => r.data),
+    onSuccess: (data) => {
+      localStorage.setItem('aria_token', data.token);
+      qc.invalidateQueries({ queryKey: ['tenant', 'me'] });
+    },
+  });
+
   const logout = () => {
     localStorage.removeItem('aria_token');
     qc.clear();
@@ -34,6 +43,9 @@ export function useAuth() {
     login: loginMutation.mutateAsync,
     loginPending: loginMutation.isPending,
     loginError: loginMutation.error,
+    register: registerMutation.mutateAsync,
+    registerPending: registerMutation.isPending,
+    registerError: registerMutation.error,
     logout,
     isAuthenticated: !!getTenantIdFromToken(),
   };

@@ -26,7 +26,7 @@ export enum SubscriptionTier {
 
 export interface Tenant {
   id: string;
-  lynkUserId: string;
+  email: string;
   storeName: string;
   wabaId: string | null;
   wabaStatus: WabaStatus;

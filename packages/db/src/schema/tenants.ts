@@ -35,7 +35,8 @@ export const subscriptionTierEnum = pgEnum('subscription_tier', [
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
-  lynkUserId: varchar('lynk_user_id', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
   storeName: varchar('store_name', { length: 255 }).notNull(),
   wabaId: varchar('waba_id', { length: 255 }),
   wabaStatus: wabaStatusEnum('waba_status').default('pending'),
