@@ -58,7 +58,7 @@ export type ConvState =
 
 export interface Tenant {
   id: string;
-  lynkUserId: string;
+  email: string;
   storeName: string;
   originCityName?: string | null;
   originCityId?: string | null;
