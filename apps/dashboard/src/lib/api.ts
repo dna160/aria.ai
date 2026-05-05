@@ -1,16 +1,9 @@
 import axios from 'axios';
 
-declare global {
-  interface Window { __ARIA_API_URL__?: string; }
-}
-
-// Priority: runtime config.js (set by nginx from API_URL env var)
-//           → Vite build-time VITE_API_URL (if someone sets it as a build var)
-//           → localhost fallback for local dev
-const BASE_URL =
-  window.__ARIA_API_URL__ ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:3000';
+// Relative baseURL — Vite proxy handles /api → localhost:3000 in dev,
+// Nginx proxy_pass handles it in production (see apps/dashboard/Dockerfile).
+// Override with VITE_API_URL build var if you need a direct cross-origin URL.
+const BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
