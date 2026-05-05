@@ -64,7 +64,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/v1/auth/me', { preHandler: fastify.authenticate }, async (request, reply) => {
     return reply.send({
       tenantId: request.user.tenantId,
-      email: (request.user as any).email,
+      email: request.user.email,
     });
   });
 
