@@ -32,6 +32,27 @@ importers:
 
   apps/api:
     dependencies:
+      '@aria/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@aria/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@aria/flow-engine':
+        specifier: workspace:*
+        version: link:../../packages/flow-engine
+      '@aria/meta':
+        specifier: workspace:*
+        version: link:../../packages/meta
+      '@aria/pantheon':
+        specifier: workspace:*
+        version: link:../../packages/pantheon
+      '@aria/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
+      '@aria/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@aws-sdk/client-s3':
         specifier: ^3.600.0
         version: 3.1033.0
@@ -50,27 +71,6 @@ importers:
       '@fastify/rate-limit':
         specifier: ^9.0.0
         version: 9.1.0
-      '@lynkbot/ai':
-        specifier: workspace:*
-        version: link:../../packages/ai
-      '@lynkbot/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@lynkbot/flow-engine':
-        specifier: workspace:*
-        version: link:../../packages/flow-engine
-      '@lynkbot/meta':
-        specifier: workspace:*
-        version: link:../../packages/meta
-      '@lynkbot/pantheon':
-        specifier: workspace:*
-        version: link:../../packages/pantheon
-      '@lynkbot/payments':
-        specifier: workspace:*
-        version: link:../../packages/payments
-      '@lynkbot/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@sentry/node':
         specifier: ^8.0.0
         version: 8.55.1
@@ -175,27 +175,27 @@ importers:
 
   apps/worker:
     dependencies:
+      '@aria/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@aria/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@aria/flow-engine':
+        specifier: workspace:*
+        version: link:../../packages/flow-engine
+      '@aria/meta':
+        specifier: workspace:*
+        version: link:../../packages/meta
+      '@aria/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
+      '@aria/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@aws-sdk/client-s3':
         specifier: ^3.600.0
         version: 3.1033.0
-      '@lynkbot/ai':
-        specifier: workspace:*
-        version: link:../../packages/ai
-      '@lynkbot/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@lynkbot/flow-engine':
-        specifier: workspace:*
-        version: link:../../packages/flow-engine
-      '@lynkbot/meta':
-        specifier: workspace:*
-        version: link:../../packages/meta
-      '@lynkbot/payments':
-        specifier: workspace:*
-        version: link:../../packages/payments
-      '@lynkbot/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@sentry/node':
         specifier: ^8.0.0
         version: 8.55.1
@@ -227,10 +227,10 @@ importers:
 
   packages/ai:
     dependencies:
-      '@lynkbot/db':
+      '@aria/db':
         specifier: workspace:*
         version: link:../db
-      '@lynkbot/shared':
+      '@aria/shared':
         specifier: workspace:*
         version: link:../shared
       openai:
@@ -255,7 +255,7 @@ importers:
 
   packages/db:
     dependencies:
-      '@lynkbot/shared':
+      '@aria/shared':
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
@@ -274,13 +274,13 @@ importers:
 
   packages/flow-engine:
     dependencies:
-      '@lynkbot/db':
+      '@aria/db':
         specifier: workspace:*
         version: link:../db
-      '@lynkbot/meta':
+      '@aria/meta':
         specifier: workspace:*
         version: link:../meta
-      '@lynkbot/shared':
+      '@aria/shared':
         specifier: workspace:*
         version: link:../shared
       bullmq:
@@ -296,7 +296,7 @@ importers:
 
   packages/meta:
     dependencies:
-      '@lynkbot/shared':
+      '@aria/shared':
         specifier: workspace:*
         version: link:../shared
       axios:
@@ -315,10 +315,10 @@ importers:
 
   packages/pantheon:
     dependencies:
-      '@lynkbot/db':
+      '@aria/db':
         specifier: workspace:*
         version: link:../db
-      '@lynkbot/shared':
+      '@aria/shared':
         specifier: workspace:*
         version: link:../shared
       openai:
@@ -331,7 +331,7 @@ importers:
 
   packages/payments:
     dependencies:
-      '@lynkbot/shared':
+      '@aria/shared':
         specifier: workspace:*
         version: link:../shared
       axios:
@@ -357,25 +357,6 @@ importers:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
-
-  packages/wati:
-    dependencies:
-      '@lynkbot/shared':
-        specifier: workspace:*
-        version: link:../shared
-      axios:
-        specifier: ^1.7.0
-        version: 1.15.1
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.39
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
-      vitest:
-        specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.39)(lightningcss@1.32.0)
 
 packages:
 
