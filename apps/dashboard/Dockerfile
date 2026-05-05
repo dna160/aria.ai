@@ -1,4 +1,4 @@
-﻿# @CLAUDE_CONTEXT
+# @CLAUDE_CONTEXT
 # Package : apps/dashboard
 # File    : Dockerfile
 # Role    : Multi-stage Docker build for Aria React dashboard.

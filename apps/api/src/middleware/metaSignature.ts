@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : apps/api
  * File    : src/middleware/metaSignature.ts

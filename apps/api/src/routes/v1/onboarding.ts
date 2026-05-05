@@ -1,4 +1,4 @@
-﻿import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
 import { db, tenants } from '@aria/db';
 import { eq } from '@aria/db';
 import { config } from '../../config';

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : packages/shared
  * File    : src/schemas/address.schema.ts

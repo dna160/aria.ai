@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : packages/meta
  * File    : src/index.ts

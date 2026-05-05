@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Step1StoreName } from './steps/Step1StoreName';
 import { Step2WhatsApp } from './steps/Step2WhatsApp';

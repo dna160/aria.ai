@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : packages/flow-engine
  * File    : src/index.ts

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : packages/ai
  * File    : src/rag/__tests__/pipeline.test.ts

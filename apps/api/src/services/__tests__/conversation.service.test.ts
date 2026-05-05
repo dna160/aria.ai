@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : apps/api
  * File    : src/services/__tests__/conversation.service.test.ts

@@ -1,4 +1,4 @@
-﻿# Aria Implementation Master Reference
+# Aria Implementation Master Reference
 
 > **Purpose:** Single authoritative reference for any agent picking up this codebase. Covers architecture,
 > feature locations, API surface, DB schema, type system, design patterns, and operational details.

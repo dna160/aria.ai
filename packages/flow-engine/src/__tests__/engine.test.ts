@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mock @aria/db ──────────────────────────────────────────────────────────
 // Note: vi.mock is hoisted, so we cannot use top-level variables inside the factory.

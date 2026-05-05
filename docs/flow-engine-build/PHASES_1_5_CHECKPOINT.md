@@ -1,4 +1,4 @@
-﻿# Phases 1–5 Checkpoint — Aria Flow Engine v2.1
+# Phases 1–5 Checkpoint — Aria Flow Engine v2.1
 
 > **Branch:** `claude/elegant-brattain-b5512a`
 > **Last commit:** `880753d` (PRD drift fixes)

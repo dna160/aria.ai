@@ -1,4 +1,4 @@
-﻿import { db, wabaPool, tenants, eq, sql } from '@aria/db';
+import { db, wabaPool, tenants, eq, sql } from '@aria/db';
 import { config } from '../config';
 import { encrypt, decrypt } from '../utils/crypto';
 

@@ -1,4 +1,4 @@
-﻿import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '@/hooks/useAuth';
 import { usePendingOrdersCount, useEscalatedConversationsCount, useLowStockCount } from '@/hooks/useOverview';

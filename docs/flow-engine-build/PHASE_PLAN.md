@@ -1,4 +1,4 @@
-﻿# Aria Flow Engine v2.1 — Phased Build Plan
+# Aria Flow Engine v2.1 — Phased Build Plan
 
 > **North Star Document**: `Aria_Flow_Engine_PRD_v2.1.md` (project root).
 > Every phase MUST treat the PRD as authoritative. When this plan and the PRD disagree,

@@ -1,4 +1,4 @@
-﻿# Phase 4 Handoff — Re-engagement + Risk Scoring
+# Phase 4 Handoff — Re-engagement + Risk Scoring
 
 > **Read first (in order):**
 > 1. `Aria_Flow_Engine_PRD_v2.1.md` (project root — north star, authoritative)

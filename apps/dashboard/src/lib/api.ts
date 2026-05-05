@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 declare global {
   interface Window { __ARIA_API_URL__?: string; }

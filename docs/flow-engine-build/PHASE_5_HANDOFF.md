@@ -1,4 +1,4 @@
-﻿# Phase 5 Handoff — AI Flow Generation + Dashboard UI
+# Phase 5 Handoff — AI Flow Generation + Dashboard UI
 
 > **Read first (in order):**
 > 1. `Aria_Flow_Engine_PRD_v2.1.md` (project root — north star, authoritative)

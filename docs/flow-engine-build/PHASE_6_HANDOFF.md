@@ -1,4 +1,4 @@
-﻿# Phase 6 Handoff — Test Suite Completion + Production Readiness
+# Phase 6 Handoff — Test Suite Completion + Production Readiness
 
 > **Read first (in order):**
 > 1. `Aria_Flow_Engine_PRD_v2.1.md` (project root — north star, authoritative)

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { api } from '../../../lib/api';
 
 type Mode = 'choose' | 'pool' | 'manual';

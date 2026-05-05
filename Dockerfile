@@ -1,4 +1,4 @@
-﻿# @CLAUDE_CONTEXT
+# @CLAUDE_CONTEXT
 # File    : Dockerfile (repo root)
 # Role    : Unified Docker build for Aria API and Worker.
 #

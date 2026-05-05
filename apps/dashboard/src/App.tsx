@@ -1,4 +1,4 @@
-﻿import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Component, type ReactNode } from 'react';
 import { Layout } from './components/Layout';
 import { CanvasLayout } from './components/CanvasLayout';

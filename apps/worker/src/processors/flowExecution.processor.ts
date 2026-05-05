@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : apps/worker
  * File    : src/processors/flowExecution.processor.ts

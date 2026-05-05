@@ -1,4 +1,4 @@
-﻿# Aria Railway Deployment Guide
+# Aria Railway Deployment Guide
 
 > **Scope:** Production deployment of the Flow Engine v2.1 monorepo (Phases 1–6) on Railway.
 > All three services (`api`, `worker`, `dashboard`) deploy from the same repo on the same branch.

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Seed the waba_pool table with pre-provisioned Meta WABA accounts.
  * Run once after migration 0005 on first deploy:
  *   WABA_POOL_ENCRYPTION_KEY=<key> pnpm seed:waba

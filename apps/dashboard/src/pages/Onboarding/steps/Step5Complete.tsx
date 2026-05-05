@@ -1,4 +1,4 @@
-﻿export function Step5Complete({ onFinish }: { onFinish: () => void }) {
+export function Step5Complete({ onFinish }: { onFinish: () => void }) {
   const checks = [
     'Store name and shipping origin configured',
     'WhatsApp (WATI) connected',

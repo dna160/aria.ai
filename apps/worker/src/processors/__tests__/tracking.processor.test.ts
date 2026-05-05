@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : apps/worker
  * File    : src/processors/__tests__/tracking.processor.test.ts

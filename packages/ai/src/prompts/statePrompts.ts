@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : packages/ai
  * File    : src/prompts/statePrompts.ts

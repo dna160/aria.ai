@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @CLAUDE_CONTEXT
  * Package : apps/worker
  * File    : src/processors/__tests__/paymentExpiry.processor.test.ts

@@ -1,4 +1,4 @@
-﻿# Phase 3 Handoff — Template Studio
+# Phase 3 Handoff — Template Studio
 
 > **Read first (in order):**
 > 1. `Aria_Flow_Engine_PRD_v2.1.md` (project root — north star, authoritative)
