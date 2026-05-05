@@ -4,15 +4,14 @@
 # Role    : Multi-stage Docker build for Aria React dashboard.
 #           Stage 1 : deps    — install node_modules (dashboard only)
 #           Stage 2 : builder — vite build → static files in dist/
-#           Stage 3 : runner  — nginx serves static files on port 80
+#           Stage 3 : runner  — nginx serves static files + proxies /api/ to API service
 #
-# RAILWAY SETUP — set this as a Build Variable in the Railway aria-dashboard service:
-#   VITE_API_URL = https://<your-api-public-domain>
+# RAILWAY SETUP — set this Runtime Variable in the Railway aria-dashboard service:
+#   API_URL = https://<your-api-public-domain>
 #   Find your API public domain: Railway → aria-api service → Settings → Networking → Public Domain
 #   Example: https://aria-api-production.up.railway.app
 #
-# Vite bakes VITE_* env vars into the JS bundle at BUILD TIME, so it must be a Build Variable
-# (not a regular Railway env var, which is only available at runtime).
+# API_URL is read at container startup by docker-entrypoint.sh — it is NOT a build variable.
 
 ARG VITE_API_URL=""
 
@@ -53,40 +52,14 @@ FROM nginx:1.27-alpine AS runner
 
 COPY --from=builder /app/apps/dashboard/dist /usr/share/nginx/html
 
-# Remove the default nginx config so only ours is loaded
+# Remove the default nginx config — entrypoint generates ours at runtime
 RUN rm -f /etc/nginx/conf.d/default.conf
 
-# Write config with __PORT__ and __API_URL__ as plain-text placeholders.
-# sed replaces them at runtime — no envsubst, no $ ambiguity with nginx variables.
-# __API_URL__ must be the full base URL of the API service (no trailing slash),
-# e.g. https://aria-api-production.up.railway.app
-# Set API_URL in Railway → dashboard service → Variables.
-RUN printf 'server {\n\
-    listen __PORT__;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-    gzip on;\n\
-    gzip_types text/plain text/css application/javascript application/json image/svg+xml;\n\
-    location /api/ {\n\
-        proxy_pass __API_URL__/api/;\n\
-        proxy_http_version 1.1;\n\
-        proxy_set_header Host $http_host;\n\
-        proxy_set_header X-Real-IP $remote_addr;\n\
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
-        proxy_set_header X-Forwarded-Proto $scheme;\n\
-    }\n\
-    location / {\n\
-        try_files $uri $uri/ /index.html;\n\
-    }\n\
-    location ~* \\.(?:js|css|woff2?|png|jpg|svg|ico)$ {\n\
-        expires 1y;\n\
-        add_header Cache-Control "public, immutable";\n\
-    }\n\
-}\n' > /tmp/nginx.conf.template
+# Copy entrypoint script that generates nginx config from env vars
+COPY apps/dashboard/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 ENV PORT=80
-ENV API_URL=http://localhost:3000
 EXPOSE 80
 
-# At startup: substitute __PORT__ and __API_URL__ in the nginx config, then start nginx.
-CMD ["/bin/sh", "-c", "sed \"s/__PORT__/${PORT}/g\" /tmp/nginx.conf.template | sed \"s|__API_URL__|${API_URL}|g\" > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+CMD ["/docker-entrypoint.sh"]
